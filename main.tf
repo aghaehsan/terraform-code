@@ -40,7 +40,7 @@ resource "aws_security_group" "instance" {
     }
 }
 
-resource "aws_security_group" "lb" {
+resource "aws_security_group" "security-group-lb" {
     name = "terraform-example-elb"
     
     ingress {
@@ -63,7 +63,7 @@ resource "aws_lb" "my-test-lb" {
     internal = false
     load_balancer_type = "application"
     subnets = ["${data.aws_subnet.primary.id}", "${data.aws_subnet.secondary.id}"]
-
+    security_groups = ["${aws_security_group.security-group-lb.id}"]
     enable_deletion_protection = false
 
     tags = {
@@ -151,3 +151,6 @@ resource "aws_lb_listener_rule" "listener_rule" {
 }
 
 
+output "load-balancer-dns" {
+  value = "${aws_lb.my-test-lb.dns_name}"
+}
