@@ -1,4 +1,4 @@
-#======== autoscaling group with ALB ===========
+
 variable "server_port" {
     description = "The port the server will use for HTTP requests"
     default = "8080"
@@ -7,6 +7,7 @@ variable "server_port" {
 
 provider "aws" {
     region = "us-east-1"
+    skip_metadata_api_check = true
 }
 
 data "aws_vpc" "default" {
@@ -27,34 +28,47 @@ data "aws_subnet" "secondary" {
 
 resource "aws_security_group" "instance" {
     name = "terraform-example-instance"
-
-    ingress {
-        from_port = "${var.server_port}"
-        to_port =   "${var.server_port}"
-        protocol = "tcp"
-        cidr_blocks = ["0.0.0.0/0"]
-    }
-
     lifecycle {
         create_before_destroy = true
     }
 }
 
+resource "aws_security_group_rule" "http-inbound-access-instance"{
+  security_group_id = "${aws_security_group.instance.id}"
+  type = "ingress"
+  from_port = "${var.server_port}"
+  to_port = "${var.server_port}"
+  protocol = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+
+
 resource "aws_security_group" "security-group-lb" {
     name = "terraform-example-elb"
+    vpc_id = "${data.aws_vpc.default.id}" 
     
-    ingress {
-        from_port = 80
-        to_port = 80
-        protocol = "tcp"
-        cidr_blocks = ["0.0.0.0/0"]
+    lifecycle {
+        create_before_destroy = true
     }
-    egress {
-        from_port = 0
-        to_port = 0
-        protocol = "-1"
-        cidr_blocks = ["0.0.0.0/0"]
-    }
+}
+
+resource "aws_security_group_rule" "http-inbound-access-lb" {
+  security_group_id = "${aws_security_group.security-group-lb.id}"
+  type = "ingress"
+  from_port = 80
+  protocol = "tcp"
+  to_port = 80
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "all-outbound-access" {
+  security_group_id = "${aws_security_group.security-group-lb.id}"
+  type = "egress"
+  from_port = 0
+  protocol = "-1"
+  to_port = 0
+  cidr_blocks = ["0.0.0.0/0"]
 }
 
 
